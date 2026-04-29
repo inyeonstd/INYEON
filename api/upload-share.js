@@ -120,11 +120,26 @@ export default async function handler(req, res) {
 
     const html = buildHtml({ title, description, image, redirectUrl })
     const path = guestToken
-      ? `share/${slug}-${guestToken}.html`
-      : `share/${slug}.html`
+      ? `${slug}-${guestToken}.html`
+      : `${slug}.html`
+
+    // El bucket `media` solo acepta imágenes. Usamos un bucket dedicado
+    // `share` que sí acepta text/html. Lo creamos si no existe (idempotente).
+    const { data: buckets } = await supa.storage.listBuckets()
+    const exists = (buckets || []).some((b) => b.name === 'share')
+    if (!exists) {
+      const { error: bErr } = await supa.storage.createBucket('share', {
+        public: true,
+        allowedMimeTypes: ['text/html', 'text/html; charset=utf-8'],
+        fileSizeLimit: 1024 * 100,
+      })
+      if (bErr && !String(bErr.message || '').includes('already exists')) {
+        return res.status(500).json({ error: `bucket: ${bErr.message}` })
+      }
+    }
 
     const { error: upErr } = await supa.storage
-      .from('media')
+      .from('share')
       .upload(path, Buffer.from(html, 'utf8'), {
         contentType: 'text/html; charset=utf-8',
         cacheControl: '300',
@@ -134,7 +149,7 @@ export default async function handler(req, res) {
 
     const {
       data: { publicUrl },
-    } = supa.storage.from('media').getPublicUrl(path)
+    } = supa.storage.from('share').getPublicUrl(path)
 
     return res.status(200).json({ url: publicUrl })
   } catch (err) {
