@@ -176,8 +176,26 @@ export default function Guests() {
     }
   }
 
+  // Pide al backend que genere/regenere el HTML con OG tags en Supabase Storage
+  // y devuelve esa URL. La usamos para compartir porque las IPs de FB/WhatsApp
+  // están bloqueadas en *.vercel.app de este team y Supabase Storage sí
+  // responde a esos scrapers.
+  const buildShareUrl = async (slug, token) => {
+    try {
+      const res = await fetch('/api/upload-share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug, guestToken: token }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      if (data?.url) return data.url
+    } catch {}
+    return buildGuestLink(slug, token)
+  }
+
   const copy = async (g) => {
-    const link = buildGuestLink(event.slug, g.token)
+    const link = await buildShareUrl(event.slug, g.token)
     try {
       await navigator.clipboard.writeText(link)
       setCopiedId(g.id)
@@ -185,6 +203,16 @@ export default function Guests() {
     } catch {
       window.prompt('Copia este link:', link)
     }
+  }
+
+  const shareWhatsApp = async (g) => {
+    const link = await buildShareUrl(event.slug, g.token)
+    const text = `${event.title || 'Estás invitado/a'}\n${link}`
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(text)}`,
+      '_blank',
+      'noopener,noreferrer'
+    )
   }
 
   const startEdit = (g) => {
@@ -497,16 +525,13 @@ export default function Guests() {
                   >
                     {copiedId === g.id ? 'Copiado' : 'Copiar'}
                   </button>
-                  <a
-                    href={`https://wa.me/?text=${encodeURIComponent(
-                      `${event.title || 'Estás invitado/a'}\n${buildGuestLink(event.slug, g.token)}`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => shareWhatsApp(g)}
                     className="inline-flex min-h-10 items-center justify-center border border-ink/15 bg-[#25D366]/90 px-3 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#1ebe57]"
                   >
                     WhatsApp
-                  </a>
+                  </button>
                   <Link
                     to={`/i/${event.slug}?g=${g.token}`}
                     target="_blank"
