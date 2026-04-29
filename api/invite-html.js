@@ -77,8 +77,13 @@ export default async function handler(req, res) {
       (dateStr ? `Te invitamos · ${dateStr}` : 'Te invitamos a celebrar con nosotros')
 
     const pageUrl = `${origin}/i/${encodeURIComponent(slug)}`
+    // og:image servido desde same-origin para que WhatsApp/FB lo consideren
+    // confiable. /api/cover proxea la portada de Supabase con el dominio de
+    // este deploy.
     const cover = event?.cover_image_url || ''
-    const ogImage = cover || `${origin}/api/og?slug=${encodeURIComponent(slug)}`
+    const ogImage = cover
+      ? `${origin}/api/cover?slug=${encodeURIComponent(slug)}`
+      : `${origin}/api/og?slug=${encodeURIComponent(slug)}`
     const ogImageType = cover ? 'image/jpeg' : 'image/png'
 
     const meta = `
