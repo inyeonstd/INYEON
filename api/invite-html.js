@@ -77,7 +77,12 @@ export default async function handler(req, res) {
       (dateStr ? `Te invitamos · ${dateStr}` : 'Te invitamos a celebrar con nosotros')
 
     const pageUrl = `${origin}/i/${encodeURIComponent(slug)}`
-    const ogImage = `${origin}/api/og?slug=${encodeURIComponent(slug)}`
+    // Prefer the direct cover image URL when available — it always renders
+    // in WhatsApp/iMessage. Fall back to /api/og (which composes a 1200x630
+    // banner with the title in Fraunces italic) when there is no cover.
+    const cover = event?.cover_image_url || ''
+    const ogImage = cover || `${origin}/api/og?slug=${encodeURIComponent(slug)}`
+    const ogImageType = cover ? '' : 'image/png'
 
     const meta = `
     <title>${escapeHtml(title)}</title>
@@ -91,9 +96,7 @@ export default async function handler(req, res) {
     <meta property="og:url" content="${escapeHtml(pageUrl)}" />
     <meta property="og:image" content="${escapeHtml(ogImage)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(ogImage)}" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    ${ogImageType ? `<meta property="og:image:type" content="${ogImageType}" />` : ''}
     <meta property="og:image:alt" content="${escapeHtml(title)}" />
     <meta property="og:locale" content="es_GT" />
 
