@@ -14,18 +14,22 @@ async function getEvent(slug) {
   const key = process.env.SUPABASE_SERVICE_KEY
   if (!url || !key || !slug) return null
 
-  const endpoint = `${url}/rest/v1/events?slug=eq.${encodeURIComponent(
-    slug
-  )}&select=title,event_date,cover_image_url`
-  const res = await fetch(endpoint, {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-  })
-  if (!res.ok) return null
-  const rows = await res.json()
-  return rows?.[0] || null
+  try {
+    const endpoint = `${url}/rest/v1/events?slug=eq.${encodeURIComponent(
+      slug
+    )}&select=title,subtitle,event_date,cover_image_url`
+    const res = await fetch(endpoint, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    })
+    if (!res.ok) return null
+    const rows = await res.json()
+    return rows?.[0] || null
+  } catch {
+    return null
+  }
 }
 
 async function loadFont(origin, file) {
@@ -39,7 +43,7 @@ async function loadFont(origin, file) {
 }
 
 function formatDate(value) {
-  if (!value) return 'Invitación digital'
+  if (!value) return ''
   try {
     return new Intl.DateTimeFormat('es-GT', {
       day: '2-digit',
@@ -47,20 +51,11 @@ function formatDate(value) {
       year: 'numeric',
     }).format(new Date(value))
   } catch {
-    return 'Invitación digital'
+    return ''
   }
 }
 
-export default async function handler(req) {
-  const requestUrl = new URL(req.url)
-  const slug = requestUrl.searchParams.get('slug')
-  const event = await getEvent(slug)
-  const title = event?.title || 'Inyeon'
-  const cover = event?.cover_image_url || ''
-  const origin = requestUrl.origin
-  const fontItalic = await loadFont(origin, 'fraunces-latin-600-italic.woff2')
-  const fontRegular = await loadFont(origin, 'fraunces-latin-400-normal.woff2')
-
+function renderImage({ title, dateStr, cover, slug, fontRegular, fontItalic }) {
   return new ImageResponse(
     React.createElement(
       'div',
@@ -72,7 +67,7 @@ export default async function handler(req) {
           position: 'relative',
           background: colors.ink,
           color: colors.cream,
-          fontFamily: 'Fraunces',
+          fontFamily: 'Fraunces, serif',
           overflow: 'hidden',
         },
       },
@@ -81,7 +76,8 @@ export default async function handler(req) {
             src: cover,
             style: {
               position: 'absolute',
-              inset: 0,
+              top: 0,
+              left: 0,
               width: '100%',
               height: '100%',
               objectFit: 'cover',
@@ -91,16 +87,24 @@ export default async function handler(req) {
       React.createElement('div', {
         style: {
           position: 'absolute',
-          inset: 0,
-          background: 'rgba(22, 21, 20, 0.54)',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(22, 21, 20, 0.55)',
+          display: 'flex',
         },
       }),
       React.createElement('div', {
         style: {
           position: 'absolute',
-          inset: 48,
+          top: 48,
+          left: 48,
+          right: 48,
+          bottom: 48,
           border: `2px solid ${colors.cream}`,
           opacity: 0.72,
+          display: 'flex',
         },
       }),
       React.createElement(
@@ -138,27 +142,27 @@ export default async function handler(req) {
             style: {
               display: 'flex',
               flexDirection: 'column',
-              gap: 22,
               maxWidth: 860,
             },
           },
-          React.createElement(
-            'div',
-            {
-              style: {
-                width: 120,
-                height: 2,
-                background: colors.rust,
-              },
-            }
-          ),
+          React.createElement('div', {
+            style: {
+              width: 120,
+              height: 2,
+              background: colors.rust,
+              marginBottom: 22,
+              display: 'flex',
+            },
+          }),
           React.createElement(
             'div',
             {
               style: {
                 fontSize: title.length > 26 ? 84 : 104,
-                lineHeight: 0.96,
+                lineHeight: 1,
                 fontStyle: 'italic',
+                fontWeight: 600,
+                display: 'flex',
               },
             },
             title
@@ -167,14 +171,16 @@ export default async function handler(req) {
             'div',
             {
               style: {
+                marginTop: 22,
                 fontSize: 30,
                 letterSpacing: 6,
                 textTransform: 'uppercase',
                 color: colors.cream,
                 opacity: 0.86,
+                display: 'flex',
               },
             },
-            formatDate(event?.event_date)
+            dateStr || 'Invitación digital'
           )
         ),
         React.createElement(
@@ -212,8 +218,61 @@ export default async function handler(req) {
         },
       ].filter(Boolean),
       headers: {
-        'Cache-Control': 'public, max-age=0, s-maxage=86400, stale-while-revalidate=604800',
+        'Cache-Control': 'public, max-age=60, s-maxage=86400, stale-while-revalidate=604800',
       },
     }
   )
+}
+
+export default async function handler(req) {
+  const requestUrl = new URL(req.url)
+  const slug = requestUrl.searchParams.get('slug') || ''
+  const debug = requestUrl.searchParams.get('debug') === '1'
+
+  try {
+    const event = await getEvent(slug)
+    const title = event?.title || (slug ? slug.replace(/-/g, ' ') : 'Inyeon')
+    const cover = event?.cover_image_url || ''
+    const dateStr = formatDate(event?.event_date)
+    const origin = requestUrl.origin
+
+    const [fontRegular, fontItalic] = await Promise.all([
+      loadFont(origin, 'fraunces-latin-400-normal.woff2'),
+      loadFont(origin, 'fraunces-latin-600-italic.woff2'),
+    ])
+
+    if (debug) {
+      return new Response(
+        JSON.stringify(
+          {
+            slug,
+            hasEvent: !!event,
+            title,
+            cover,
+            dateStr,
+            fontRegular: fontRegular ? fontRegular.byteLength : 0,
+            fontItalic: fontItalic ? fontItalic.byteLength : 0,
+            envSupabaseUrl: !!process.env.SUPABASE_URL,
+            envSupabaseKey: !!process.env.SUPABASE_SERVICE_KEY,
+          },
+          null,
+          2
+        ),
+        { headers: { 'content-type': 'application/json; charset=utf-8' } }
+      )
+    }
+
+    return renderImage({ title, dateStr, cover, slug, fontRegular, fontItalic })
+  } catch (err) {
+    return new Response(
+      `OG render failed: ${err?.message || err}\n${err?.stack || ''}`,
+      {
+        status: 500,
+        headers: {
+          'content-type': 'text/plain; charset=utf-8',
+          'cache-control': 'no-store',
+        },
+      }
+    )
+  }
 }
