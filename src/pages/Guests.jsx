@@ -176,26 +176,20 @@ export default function Guests() {
     }
   }
 
-  // Pide al backend que genere/regenere el HTML con OG tags en Supabase Storage
-  // y devuelve esa URL. La usamos para compartir porque las IPs de FB/WhatsApp
-  // están bloqueadas en *.vercel.app de este team y Supabase Storage sí
-  // responde a esos scrapers.
-  const buildShareUrl = async (slug, token) => {
-    try {
-      const res = await fetch('/api/upload-share', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, guestToken: token }),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      if (data?.url) return data.url
-    } catch {}
-    return buildGuestLink(slug, token)
+  // URL de la Supabase Edge Function `share` que devuelve HTML con OG tags
+  // (text/html correcto). Usamos esto para compartir porque las IPs de FB y
+  // WhatsApp están bloqueadas en *.vercel.app del team `inyeonstds` —
+  // Supabase Edge Functions están en otra red y los scrapers sí pasan.
+  const buildShareUrl = (slug, token) => {
+    const base = import.meta.env.VITE_SUPABASE_URL
+    if (!base) return buildGuestLink(slug, token)
+    const qs = new URLSearchParams({ slug })
+    if (token) qs.set('g', token)
+    return `${base}/functions/v1/share?${qs.toString()}`
   }
 
   const copy = async (g) => {
-    const link = await buildShareUrl(event.slug, g.token)
+    const link = buildShareUrl(event.slug, g.token)
     try {
       await navigator.clipboard.writeText(link)
       setCopiedId(g.id)
@@ -205,8 +199,8 @@ export default function Guests() {
     }
   }
 
-  const shareWhatsApp = async (g) => {
-    const link = await buildShareUrl(event.slug, g.token)
+  const shareWhatsApp = (g) => {
+    const link = buildShareUrl(event.slug, g.token)
     const text = `${event.title || 'Estás invitado/a'}\n${link}`
     window.open(
       `https://wa.me/?text=${encodeURIComponent(text)}`,
