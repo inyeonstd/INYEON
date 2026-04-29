@@ -154,7 +154,12 @@ export async function clearSession() {
   localStorage.removeItem(KEY_SESSION)
 }
 
+// Dominio de producción que sí pasa los scrapers de Facebook/WhatsApp.
+// Si estás browseando el sitio viejo (inyeon-lyart) o localhost, igual
+// queremos que los links compartidos apunten al dominio nuevo.
+const SHARE_ORIGIN = 'https://inyeon-delta.vercel.app'
+
 export function buildGuestLink(slug, token) {
-  const base = `${window.location.origin}/share/${slug}`
+  const base = `${SHARE_ORIGIN}/share/${slug}`
   return token ? `${base}?g=${token}` : base
 }
