@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AdminShell,
@@ -11,34 +11,63 @@ import {
 import {
   createEvent,
   deleteEvent,
-  ensureSeed,
   getSession,
   listEvents,
 } from '../lib/store'
 
 export default function Dashboard() {
-  ensureSeed()
   const nav = useNavigate()
   const session = getSession()
-  const [events, setEvents] = useState(() => listEvents(session?.email))
+  const [events, setEvents] = useState([])
   const [creating, setCreating] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [title, setTitle] = useState('')
 
-  const refresh = () => setEvents(listEvents(session?.email))
-
-  const handleCreate = (e) => {
-    e.preventDefault()
-    const t = title.trim() || 'Nombre & Nombre'
-    const ev = createEvent(session?.email, { title: t })
-    setTitle('')
-    setCreating(false)
-    nav(`/app/event/${ev.id}`)
+  const refresh = async () => {
+    if (!session?.email) {
+      setEvents([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      setEvents(await listEvents(session.email))
+    } catch (err) {
+      setError(err?.message || 'No se pudieron cargar las bodas.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleDelete = (id) => {
-    if (!confirm('¿Eliminar esta boda? No se puede deshacer.')) return
-    deleteEvent(id)
+  useEffect(() => {
     refresh()
+  }, [session?.email])
+
+  const handleCreate = async (e) => {
+    e.preventDefault()
+    const t = title.trim() || 'Nombre & Nombre'
+    setError('')
+    try {
+      const ev = await createEvent(session?.email, { title: t })
+      setTitle('')
+      setCreating(false)
+      nav(`/app/event/${ev.id}`)
+    } catch (err) {
+      setError(err?.message || 'No se pudo crear la boda.')
+    }
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('¿Eliminar esta boda? No se puede deshacer.')) return
+    setError('')
+    try {
+      await deleteEvent(id)
+      await refresh()
+    } catch (err) {
+      setError(err?.message || 'No se pudo eliminar la boda.')
+    }
   }
 
   return (
@@ -52,6 +81,14 @@ export default function Dashboard() {
         </div>
         <Button onClick={() => setCreating(true)}>+ Nueva boda</Button>
       </div>
+
+      {error && (
+        <Card className="mb-6 border-rust/30 bg-rust/5">
+          <p className="font-mono text-xs uppercase tracking-[0.25em] text-rust">
+            {error}
+          </p>
+        </Card>
+      )}
 
       {creating && (
         <Card className="mb-8">
@@ -76,7 +113,11 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {events.length === 0 ? (
+      {loading ? (
+        <Card className="text-center">
+          <p className="font-display text-2xl italic">Cargando bodas...</p>
+        </Card>
+      ) : events.length === 0 ? (
         <Card className="text-center">
           <p className="font-display text-2xl italic">Aún no hay bodas.</p>
           <p className="mt-2 font-mono text-xs text-ink/50">

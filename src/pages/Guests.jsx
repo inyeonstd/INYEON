@@ -19,24 +19,64 @@ import {
 export default function Guests() {
   const { id } = useParams()
   const nav = useNavigate()
-  const [event, setEvent] = useState(() => getEvent(id))
+  const [event, setEvent] = useState(null)
   const [draft, setDraft] = useState({ name: '', kind: 'single', passes: 1, note: '' })
   const [copiedId, setCopiedId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!event) nav('/app', { replace: true })
-  }, [event, nav])
+    let active = true
+    setLoading(true)
+    setError('')
+    getEvent(id)
+      .then((found) => {
+        if (!active) return
+        if (!found) {
+          nav('/app', { replace: true })
+          return
+        }
+        setEvent(found)
+      })
+      .catch((err) => {
+        if (active) setError(err?.message || 'No se pudo cargar la boda.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [id, nav])
+
+  if (loading) {
+    return (
+      <AdminShell>
+        <Card className="text-center">
+          <p className="font-display text-2xl italic">Cargando invitados...</p>
+        </Card>
+      </AdminShell>
+    )
+  }
 
   if (!event) return null
 
-  const refresh = () => setEvent(getEvent(id))
+  const refresh = async () => {
+    const next = await getEvent(id)
+    if (next) setEvent(next)
+  }
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
     if (!draft.name.trim()) return
-    addGuest(event.id, draft)
-    setDraft({ name: '', kind: 'single', passes: 1, note: '' })
-    refresh()
+    setError('')
+    try {
+      await addGuest(event.id, draft)
+      setDraft({ name: '', kind: 'single', passes: 1, note: '' })
+      await refresh()
+    } catch (err) {
+      setError(err?.message || 'No se pudo añadir el invitado.')
+    }
   }
 
   const copy = async (g) => {
@@ -79,6 +119,14 @@ export default function Guests() {
           </p>
         </div>
       </div>
+
+      {error && (
+        <Card className="mb-6 border-rust/30 bg-rust/5">
+          <p className="font-mono text-xs uppercase tracking-[0.25em] text-rust">
+            {error}
+          </p>
+        </Card>
+      )}
 
       <Card className="mb-8">
         <form onSubmit={submit} className="grid grid-cols-1 gap-3 md:grid-cols-12 md:items-end">
@@ -158,7 +206,10 @@ export default function Guests() {
                     onClick={() => {
                       if (!confirm('¿Eliminar este invitado?')) return
                       removeGuest(event.id, g.id)
-                      refresh()
+                        .then(refresh)
+                        .catch((err) =>
+                          setError(err?.message || 'No se pudo eliminar el invitado.')
+                        )
                     }}
                     className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/40 hover:text-rust"
                   >

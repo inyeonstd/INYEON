@@ -6,7 +6,7 @@ const SIZES = {
   desktop: { w: 1280, label: 'Desktop' },
 }
 
-export default function PreviewPane({ slug, registerScroller, onClose }) {
+export default function PreviewPane({ slug, event, registerScroller, onClose }) {
   const [size, setSize] = useState('mobile')
   const [guestParam, setGuestParam] = useState('')
   const iframeRef = useRef(null)
@@ -31,6 +31,11 @@ export default function PreviewPane({ slug, registerScroller, onClose }) {
     registerScroller(scroll)
     return () => registerScroller(null)
   }, [registerScroller])
+
+  useEffect(() => {
+    if (!event || !readyRef.current) return
+    iframeRef.current?.contentWindow?.postMessage({ type: 'event-updated', event }, '*')
+  }, [event])
 
   const params = new URLSearchParams()
   params.set('edit', '1')
@@ -89,6 +94,12 @@ export default function PreviewPane({ slug, registerScroller, onClose }) {
             className="h-full w-full border-0"
             onLoad={() => {
               readyRef.current = true
+              if (event) {
+                iframeRef.current?.contentWindow?.postMessage(
+                  { type: 'event-updated', event },
+                  '*'
+                )
+              }
             }}
           />
         </div>

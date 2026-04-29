@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "set -a; source .env.local; set +a; npx vercel dev --yes",
     "build": "vite build",
     "preview": "vite preview"
   },

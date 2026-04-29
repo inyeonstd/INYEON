@@ -17,11 +17,15 @@ import { uploadImage } from '../lib/upload'
 export default function EventEditor() {
   const { id } = useParams()
   const nav = useNavigate()
-  const [event, setEvent] = useState(() => getEvent(id))
+  const [event, setEvent] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
   const scrollFnRef = useRef(null)
   const lastTargetRef = useRef(null)
+  const eventRef = useRef(null)
+  const saveVersionRef = useRef(0)
   const registerScroller = useCallback((fn) => {
     scrollFnRef.current = fn
   }, [])
@@ -32,8 +36,56 @@ export default function EventEditor() {
   }
 
   useEffect(() => {
-    if (!event) nav('/app', { replace: true })
-  }, [event, nav])
+    eventRef.current = event
+  }, [event])
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError('')
+    getEvent(id)
+      .then((found) => {
+        if (!active) return
+        if (!found) {
+          nav('/app', { replace: true })
+          return
+        }
+        setEvent(found)
+      })
+      .catch((err) => {
+        if (active) setError(err?.message || 'No se pudo cargar la boda.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [id, nav])
+
+  const save = useCallback(async (patch) => {
+    const current = eventRef.current
+    if (!current) return null
+    const version = saveVersionRef.current + 1
+    saveVersionRef.current = version
+    const optimistic = { ...current, ...patch }
+    eventRef.current = optimistic
+    setEvent(optimistic)
+    setError('')
+    try {
+      const saved = await updateEvent(current.id, patch)
+      if (saveVersionRef.current === version) {
+        eventRef.current = saved
+        setEvent(saved)
+      }
+      setSavedFlash(true)
+      setTimeout(() => setSavedFlash(false), 1200)
+      return saved
+    } catch (err) {
+      setError(err?.message || 'No se pudo guardar.')
+      return null
+    }
+  }, [])
 
   // Migración suave: añade secciones nuevas a eventos creados antes
   useEffect(() => {
@@ -43,38 +95,33 @@ export default function EventEditor() {
     ]
     const missing = ensure.filter((d) => !event.sections?.some((s) => s.type === d.type))
     if (missing.length === 0) return
-    const next = updateEvent(event.id, {
-      sections: [...(event.sections || []), ...missing],
-    })
-    setEvent(next)
-  }, [event?.id])
+    save({ sections: [...(event.sections || []), ...missing] })
+  }, [event?.id, save])
 
   // Mensajes de edición in-place desde la vista previa
   useEffect(() => {
     const onMsg = (e) => {
       if (e?.data?.type !== 'edit' || !e.data.path) return
-      setEvent((current) => {
-        if (!current) return current
-        const patch = applyEdit(current, e.data.path, e.data.value ?? '')
-        if (!patch) return current
-        const next = updateEvent(current.id, patch)
-        setSavedFlash(true)
-        setTimeout(() => setSavedFlash(false), 1200)
-        return next
-      })
+      const current = eventRef.current
+      if (!current) return
+      const patch = applyEdit(current, e.data.path, e.data.value ?? '')
+      if (patch) save(patch)
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [])
+  }, [save])
+
+  if (loading) {
+    return (
+      <AdminShell>
+        <Card className="text-center">
+          <p className="font-display text-2xl italic">Cargando editor...</p>
+        </Card>
+      </AdminShell>
+    )
+  }
 
   if (!event) return null
-
-  const save = (patch) => {
-    const next = updateEvent(event.id, patch)
-    setEvent(next)
-    setSavedFlash(true)
-    setTimeout(() => setSavedFlash(false), 1200)
-  }
 
   const updateSection = (type, patch) => {
     const sections = event.sections.map((s) =>
@@ -149,6 +196,14 @@ export default function EventEditor() {
             </Link>
           </div>
         </div>
+
+        {error && (
+          <Card className="mb-6 border-rust/30 bg-rust/5">
+            <p className="font-mono text-xs uppercase tracking-[0.25em] text-rust">
+              {error}
+            </p>
+          </Card>
+        )}
 
         <Card className="mb-6 border-rust/30 bg-rust/5">
           <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-rust">
@@ -308,6 +363,7 @@ export default function EventEditor() {
       {showPreview && (
         <PreviewPane
           slug={event.slug}
+          event={event}
           registerScroller={registerScroller}
           onClose={() => setShowPreview(false)}
         />

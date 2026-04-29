@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { setSession, ensureSeed } from '../lib/store'
+import { setSession } from '../lib/store'
 import { Field, Input, Button } from '../components/admin/Shell'
 
 export default function Login() {
@@ -11,7 +11,6 @@ export default function Login() {
   const submit = (e) => {
     e.preventDefault()
     if (!email.trim()) return
-    ensureSeed()
     setSession(email.trim())
     nav('/app', { replace: true })
   }
