@@ -5,8 +5,8 @@ export function AdminShell({ children, eventTitle, eventId }) {
   const nav = useNavigate()
   const session = getSession()
 
-  const logout = () => {
-    clearSession()
+  const logout = async () => {
+    await clearSession()
     nav('/login', { replace: true })
   }
 

@@ -1,18 +1,34 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { setSession } from '../lib/store'
+import { createAccount, signIn } from '../lib/store'
 import { Field, Input, Button } from '../components/admin/Shell'
 
 export default function Login() {
   const nav = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mode, setMode] = useState('login')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
-    if (!email.trim()) return
-    setSession(email.trim())
-    nav('/app', { replace: true })
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !password) return
+    setBusy(true)
+    setError('')
+    try {
+      if (mode === 'signup') {
+        await createAccount(cleanEmail, password)
+      } else {
+        await signIn(cleanEmail, password)
+      }
+      nav('/app', { replace: true })
+    } catch (err) {
+      setError(err?.message || 'No se pudo entrar.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -26,6 +42,37 @@ export default function Login() {
         </p>
 
         <form onSubmit={submit} className="mt-12 space-y-5">
+          <div className="grid grid-cols-2 gap-2 font-mono text-[10px] uppercase tracking-[0.25em]">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('login')
+                setError('')
+              }}
+              className={`border px-3 py-2 ${
+                mode === 'login'
+                  ? 'border-ink bg-ink text-cream'
+                  : 'border-ink/15 text-ink/50'
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signup')
+                setError('')
+              }}
+              className={`border px-3 py-2 ${
+                mode === 'signup'
+                  ? 'border-ink bg-ink text-cream'
+                  : 'border-ink/15 text-ink/50'
+              }`}
+            >
+              Crear cuenta
+            </button>
+          </div>
+
           <Field label="Correo">
             <Input
               type="email"
@@ -36,21 +83,31 @@ export default function Login() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
-          <Field label="Contraseña" hint="Demo: cualquier valor entra.">
+          <Field
+            label="Contraseña"
+            hint={mode === 'signup' ? 'Mínimo 6 caracteres.' : undefined}
+          >
             <Input
               type="password"
+              required
+              minLength={6}
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
-          <Button type="submit" className="w-full">
-            Entrar
+          {error && (
+            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-rust">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="w-full" disabled={busy}>
+            {busy ? 'Procesando...' : mode === 'signup' ? 'Crear cuenta' : 'Entrar'}
           </Button>
         </form>
 
         <p className="mt-8 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-ink/40">
-          Modo demo · sin verificación
+          Acceso privado
         </p>
       </div>
     </div>

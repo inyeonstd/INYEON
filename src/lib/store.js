@@ -1,5 +1,6 @@
+import { supabase } from './supabase'
+
 // Store API-backed. Todas las funciones que mutan o leen del servidor son async.
-// La sesión sigue en localStorage (auth real más adelante).
 
 const KEY_SESSION = 'inyeon_session_v1'
 
@@ -107,7 +108,27 @@ export function setSession(email) {
   return s
 }
 
-export function clearSession() {
+export async function createAccount(email, password) {
+  await jsonFetch('/api/auth/signup', {
+    method: 'POST',
+    body: { email, password },
+  })
+  return signIn(email, password)
+}
+
+export async function signIn(email, password) {
+  if (!supabase) throw new Error('Supabase no está configurado.')
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+  if (error) throw error
+  const signedEmail = data.user?.email || email
+  return setSession(signedEmail)
+}
+
+export async function clearSession() {
+  if (supabase) await supabase.auth.signOut()
   localStorage.removeItem(KEY_SESSION)
 }
 
