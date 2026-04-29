@@ -229,6 +229,36 @@ export default async function handler(req) {
   const slug = requestUrl.searchParams.get('slug') || ''
   const debug = requestUrl.searchParams.get('debug') === '1'
   const noCover = requestUrl.searchParams.get('nocover') === '1'
+  const testMode = requestUrl.searchParams.get('test') === '1'
+
+  if (testMode) {
+    try {
+      return new ImageResponse(
+        React.createElement(
+          'div',
+          {
+            style: {
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#161514',
+              color: '#F2EDE3',
+              fontSize: 96,
+            },
+          },
+          'Inyeon test'
+        ),
+        { width: 1200, height: 630 }
+      )
+    } catch (err) {
+      return new Response(`test render failed: ${err?.message}\n${err?.stack}`, {
+        status: 500,
+        headers: { 'content-type': 'text/plain', 'cache-control': 'no-store' },
+      })
+    }
+  }
 
   try {
     const event = await getEvent(slug)
