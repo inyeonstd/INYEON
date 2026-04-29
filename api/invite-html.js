@@ -77,12 +77,18 @@ export default async function handler(req, res) {
       (dateStr ? `Te invitamos · ${dateStr}` : 'Te invitamos a celebrar con nosotros')
 
     const pageUrl = `${origin}/i/${encodeURIComponent(slug)}`
-    // Prefer the direct cover image URL when available — it always renders
-    // in WhatsApp/iMessage. Fall back to /api/og (which composes a 1200x630
-    // banner with the title in Fraunces italic) when there is no cover.
-    const cover = event?.cover_image_url || ''
+    // Usamos el endpoint de Supabase Image Transform para servir la portada
+    // a 1200x630 (recomendado FB/WhatsApp) y bajo 600KB. WhatsApp descarta
+    // imágenes > 600KB. La transform lo hace automáticamente.
+    const rawCover = event?.cover_image_url || ''
+    const cover = rawCover.includes('/storage/v1/object/public/')
+      ? rawCover.replace(
+          '/storage/v1/object/public/',
+          '/storage/v1/render/image/public/'
+        ) + '?width=1200&height=630&resize=cover&quality=80'
+      : rawCover
     const ogImage = cover || `${origin}/api/og?slug=${encodeURIComponent(slug)}`
-    const ogImageType = cover ? '' : 'image/png'
+    const ogImageType = cover ? 'image/jpeg' : 'image/png'
 
     const meta = `
     <title>${escapeHtml(title)}</title>
@@ -97,6 +103,8 @@ export default async function handler(req, res) {
     <meta property="og:image" content="${escapeHtml(ogImage)}" />
     <meta property="og:image:secure_url" content="${escapeHtml(ogImage)}" />
     ${ogImageType ? `<meta property="og:image:type" content="${ogImageType}" />` : ''}
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="${escapeHtml(title)}" />
     <meta property="og:locale" content="es_GT" />
 
