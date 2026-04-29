@@ -478,7 +478,7 @@ export default function Guests() {
                     {guestPasses} {guestPasses === 1 ? 'pase asignado' : 'pases asignados'}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 md:col-span-4 md:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 md:col-span-4 md:grid-cols-5">
                   <button
                     type="button"
                     onClick={() => (isEditing ? cancelEdit() : startEdit(g))}
@@ -497,6 +497,16 @@ export default function Guests() {
                   >
                     {copiedId === g.id ? 'Copiado' : 'Copiar'}
                   </button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      `${event.title || 'Estás invitado/a'}\n${buildGuestLink(event.slug, g.token)}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center justify-center border border-ink/15 bg-[#25D366]/90 px-3 text-center font-mono text-[10px] uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#1ebe57]"
+                  >
+                    WhatsApp
+                  </a>
                   <Link
                     to={`/i/${event.slug}?g=${g.token}`}
                     target="_blank"

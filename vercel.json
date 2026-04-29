@@ -17,8 +17,12 @@
       "destination": "/index.html"
     },
     {
-      "source": "/i/:path*",
-      "destination": "/index.html"
+      "source": "/i/:slug",
+      "destination": "/api/invite-html?slug=:slug"
+    },
+    {
+      "source": "/i/:slug/:path*",
+      "destination": "/api/invite-html?slug=:slug"
     }
   ]
 }
