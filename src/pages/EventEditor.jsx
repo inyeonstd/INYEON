@@ -22,6 +22,7 @@ export default function EventEditor() {
   const [error, setError] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
   const [showPreview, setShowPreview] = useState(true)
+  const [slugDraft, setSlugDraft] = useState('')
   const scrollFnRef = useRef(null)
   const lastTargetRef = useRef(null)
   const eventRef = useRef(null)
@@ -38,6 +39,10 @@ export default function EventEditor() {
   useEffect(() => {
     eventRef.current = event
   }, [event])
+
+  useEffect(() => {
+    if (event?.slug) setSlugDraft(event.slug)
+  }, [event?.id, event?.slug])
 
   useEffect(() => {
     let active = true
@@ -111,6 +116,14 @@ export default function EventEditor() {
     return () => window.removeEventListener('message', onMsg)
   }, [save])
 
+  const dateValue = useMemo(() => {
+    if (!event?.event_date) return ''
+    const d = new Date(event.event_date)
+    if (Number.isNaN(d.getTime())) return ''
+    const tz = d.getTimezoneOffset() * 60000
+    return new Date(d - tz).toISOString().slice(0, 16)
+  }, [event?.event_date])
+
   if (loading) {
     return (
       <AdminShell>
@@ -139,14 +152,12 @@ export default function EventEditor() {
     updateSection(type, { content })
   }
 
-  const dateValue = useMemo(() => {
-    const d = new Date(event.event_date)
-    if (Number.isNaN(d.getTime())) return ''
-    const tz = d.getTimezoneOffset() * 60000
-    return new Date(d - tz).toISOString().slice(0, 16)
-  }, [event.event_date])
-
   const getSection = (type) => event.sections.find((s) => s.type === type)
+
+  const commitSlug = () => {
+    const nextSlug = slugDraft || event.slug
+    if (nextSlug !== event.slug) save({ slug: nextSlug })
+  }
 
   const focusOn = (target) => ({
     onFocusCapture: () => scrollPreviewTo(target),
@@ -155,44 +166,44 @@ export default function EventEditor() {
   })
 
   return (
-    <AdminShell eventTitle={event.title} eventId={event.id}>
+    <AdminShell eventTitle={event.title} eventId={event.id} fullWidth={showPreview}>
       <div
-        className={`transition-[padding] duration-300 ${
-          showPreview ? 'md:pr-[50%] lg:pr-[55%]' : ''
+        className={`transition-[width] duration-200 ${
+          showPreview ? 'md:w-[50%] md:pr-6 lg:w-[45%]' : 'mx-auto max-w-6xl'
         }`}
       >
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
             to="/app"
-            className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/50 hover:text-rust"
+            className="inline-flex min-h-10 items-center border border-ink/15 bg-white/70 px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-ink/70 transition-colors hover:border-rust hover:text-rust"
           >
-            ← Todas las bodas
+            Regresar
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {savedFlash && (
-              <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-rust">
+              <span className="px-2 font-mono text-[10px] uppercase tracking-[0.25em] text-rust">
                 Guardado
               </span>
             )}
             <button
               type="button"
               onClick={() => setShowPreview((v) => !v)}
-              className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/60 hover:text-rust"
+              className="inline-flex min-h-10 items-center border border-ink/15 bg-white/70 px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-ink/70 transition-colors hover:border-rust hover:text-rust"
             >
               {showPreview ? 'Ocultar preview' : 'Vista previa'}
             </button>
             <Link
               to={`/i/${event.slug}`}
               target="_blank"
-              className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/60 hover:text-rust"
+              className="inline-flex min-h-10 items-center border border-ink/15 bg-white/70 px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-ink/70 transition-colors hover:border-rust hover:text-rust"
             >
-              Abrir ↗
+              Abrir
             </Link>
             <Link
               to={`/app/event/${event.id}/guests`}
-              className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink hover:text-rust"
+              className="inline-flex min-h-10 items-center border border-ink bg-ink px-4 font-mono text-[11px] uppercase tracking-[0.18em] text-cream transition-colors hover:border-rust hover:bg-rust"
             >
-              Invitados →
+              Invitados
             </Link>
           </div>
         </div>
@@ -222,17 +233,17 @@ export default function EventEditor() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Field label="Slug (URL)" hint={`/i/${event.slug}`}>
               <Input
-                value={event.slug}
+                value={slugDraft}
                 onChange={(e) =>
-                  save({
-                    slug:
-                      e.target.value
-                        .toLowerCase()
-                        .replace(/[^a-z0-9-]+/g, '-')
-                        .replace(/-+/g, '-')
-                        .replace(/^-|-$/g, '') || event.slug,
-                  })
+                  setSlugDraft(
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9-]+/g, '-')
+                      .replace(/-+/g, '-')
+                      .replace(/^-|-$/g, '')
+                  )
                 }
+                onBlur={commitSlug}
               />
             </Field>
             <Field label="Fecha y hora">
@@ -649,10 +660,20 @@ function GalleryAdmin({ gallery, onChange }) {
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {gallery.map((src, i) => (
             <div key={i} className="group relative aspect-square overflow-hidden bg-ink/10">
-              <img src={src} alt="" className="h-full w-full object-cover" />
+              <img
+                src={src}
+                alt=""
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+                className="relative z-10 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center border border-ink/15 bg-white/50 px-3 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-ink/40">
+                Imagen no disponible
+              </div>
               <button
                 onClick={() => onChange(gallery.filter((_, j) => j !== i))}
-                className="absolute right-1 top-1 bg-ink/80 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cream opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute right-1 top-1 z-20 bg-ink/80 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-cream opacity-0 transition-opacity group-hover:opacity-100"
               >
                 Quitar
               </button>

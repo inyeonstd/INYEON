@@ -44,7 +44,7 @@ export default function PreviewPane({ slug, event, registerScroller, onClose }) 
   const w = SIZES[size].w
 
   return (
-    <aside className="fixed inset-x-0 top-0 z-40 flex h-screen flex-col border-l border-ink/10 bg-ink/95 text-cream backdrop-blur md:left-auto md:right-0 md:w-1/2 lg:w-[55%]">
+    <aside className="fixed inset-x-0 top-0 z-40 flex h-screen flex-col border-l border-ink/10 bg-ink text-cream md:left-auto md:right-0 md:w-1/2 lg:w-[55%]">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-cream/10 px-3 py-2.5 md:px-4">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-cream/60">
@@ -82,14 +82,15 @@ export default function PreviewPane({ slug, event, registerScroller, onClose }) 
         </div>
       </header>
 
-      <div className="flex flex-1 items-start justify-center overflow-auto bg-ink/40 p-3 md:p-5">
+      <div className="flex flex-1 items-start justify-center overflow-auto bg-ink p-3 md:p-5">
         <div
-          className="h-full w-full overflow-hidden rounded-lg bg-cream shadow-2xl"
+          className="h-full w-full overflow-hidden border border-cream/10 bg-cream"
           style={{ maxWidth: w }}
         >
           <iframe
             ref={iframeRef}
             src={url}
+            name={event ? `inyeon-preview:${JSON.stringify(event)}` : 'inyeon-preview'}
             title="Vista previa"
             className="h-full w-full border-0"
             onLoad={() => {

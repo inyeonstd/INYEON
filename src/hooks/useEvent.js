@@ -2,12 +2,18 @@ import { useEffect, useState } from 'react'
 import { getEventBySlug } from '../lib/store'
 
 export function useEvent(slug, guestToken) {
-  const [event, setEvent] = useState(null)
+  const initialPreviewEvent = readPreviewEvent()
+  const [event, setEvent] = useState(initialPreviewEvent)
   const [guest, setGuest] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialPreviewEvent)
   const [error, setError] = useState(null)
 
   useEffect(() => {
+    if (initialPreviewEvent?.slug === slug && !guestToken) {
+      setEvent(initialPreviewEvent)
+      setLoading(false)
+      return
+    }
     let cancel = false
     setLoading(true)
     getEventBySlug(slug, guestToken)
@@ -43,4 +49,14 @@ export function useEvent(slug, guestToken) {
   }, [])
 
   return { event, guest, loading, error }
+}
+
+function readPreviewEvent() {
+  if (typeof window === 'undefined') return null
+  try {
+    if (!window.name?.startsWith('inyeon-preview:')) return null
+    return JSON.parse(window.name.slice('inyeon-preview:'.length))
+  } catch {
+    return null
+  }
 }

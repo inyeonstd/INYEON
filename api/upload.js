@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-export const config = { api: { bodyParser: false } }
-
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_BYTES = 10 * 1024 * 1024 // 10MB
 
@@ -20,22 +18,20 @@ export default async function handler(req, res) {
   if (!url || !key) {
     return res.status(500).json({ error: 'Supabase no configurado' })
   }
-  const contentType = (req.headers['content-type'] || '').split(';')[0].trim()
+  const body = await readJson(req)
+  const contentType =
+    body.contentType || (req.headers['content-type'] || '').split(';')[0].trim()
   if (!ALLOWED.includes(contentType)) {
     return res.status(415).json({ error: 'Tipo de imagen no permitido' })
   }
 
   try {
-    const chunks = []
-    let total = 0
-    for await (const chunk of req) {
-      total += chunk.length
-      if (total > MAX_BYTES) {
-        return res.status(413).json({ error: 'Imagen demasiado grande (máx 10MB)' })
-      }
-      chunks.push(chunk)
+    const buf = decodeImage(body.dataUrl)
+    if (buf.length > MAX_BYTES) {
+      return res.status(413).json({ error: 'Imagen demasiado grande (máx 10MB)' })
     }
-    const buf = Buffer.concat(chunks)
+    if (buf.length === 0) return res.status(400).json({ error: 'Imagen vacía' })
+
     const supa = createClient(url, key, { auth: { persistSession: false } })
     const path = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${extFromMime(
       contentType
@@ -53,4 +49,29 @@ export default async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err?.message || 'Error desconocido' })
   }
+}
+
+function readJson(req) {
+  return new Promise((resolve, reject) => {
+    if (req.body && typeof req.body === 'object') return resolve(req.body)
+    let raw = ''
+    req.setEncoding('utf8')
+    req.on('data', (chunk) => {
+      raw += chunk
+    })
+    req.on('end', () => {
+      try {
+        resolve(raw ? JSON.parse(raw) : {})
+      } catch (err) {
+        reject(err)
+      }
+    })
+    req.on('error', reject)
+  })
+}
+
+function decodeImage(dataUrl) {
+  const raw = String(dataUrl || '')
+  const base64 = raw.includes(',') ? raw.split(',').pop() : raw
+  return Buffer.from(base64, 'base64')
 }

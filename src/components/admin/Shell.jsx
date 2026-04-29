@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { clearSession, getSession } from '../../lib/store'
 
-export function AdminShell({ children, eventTitle, eventId }) {
+export function AdminShell({ children, eventTitle, eventId, fullWidth = false }) {
   const nav = useNavigate()
   const session = getSession()
 
@@ -43,7 +43,15 @@ export function AdminShell({ children, eventTitle, eventId }) {
           </div>
         )}
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12">{children}</main>
+      <main
+        className={
+          fullWidth
+            ? 'px-4 py-8 md:px-8 md:py-10'
+            : 'mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-12'
+        }
+      >
+        {children}
+      </main>
     </div>
   )
 }

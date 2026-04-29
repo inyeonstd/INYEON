@@ -1,8 +1,11 @@
 import { Reveal, SectionLabel } from '../ui'
 import { tx } from '../../lib/texts'
 import Editable from '../Editable'
+import { useEditMode } from '../../lib/edit'
+import { trackInteraction } from '../../lib/store'
 
-export default function Registry({ event, content, num = '04', dark = true }) {
+export default function Registry({ event, content, guestToken, num = '04', dark = true }) {
+  const editing = useEditMode()
   const items = content.items || []
   const bg = dark ? 'bg-ink' : 'bg-cream'
   const text = dark ? 'text-cream' : 'text-ink'
@@ -43,7 +46,26 @@ export default function Registry({ event, content, num = '04', dark = true }) {
                   href={r.url || '#'}
                   target="_blank"
                   rel="noreferrer"
-                  className={`mt-6 inline-block font-mono text-[10px] uppercase tracking-[0.25em] text-rust ${dark ? 'hover:text-cream' : 'hover:text-ink'}`}
+                  onClick={(e) => {
+                    if (editing) {
+                      e.preventDefault()
+                      return
+                    }
+                    if (!guestToken || !r.url) return
+                    trackInteraction({
+                      type: 'registry_click',
+                      token: guestToken,
+                      event_id: event.id,
+                      item_index: i,
+                      item_label: r.name || r.code || 'Lista de regalo',
+                      item_url: r.url,
+                    })
+                  }}
+                  className={`mt-8 inline-flex min-h-12 items-center justify-center border px-5 font-mono text-[11px] uppercase tracking-[0.2em] transition-colors ${
+                    dark
+                      ? 'border-rust bg-rust text-cream hover:border-cream hover:bg-cream hover:text-ink'
+                      : 'border-ink bg-ink text-cream hover:border-rust hover:bg-rust'
+                  }`}
                 >
                   <Editable path="text:registry_cta">{tx(event, 'registry_cta')}</Editable>
                 </a>

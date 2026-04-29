@@ -22,7 +22,29 @@ export default async function handler(req, res) {
       .eq('owner_email', owner)
       .order('updated_at', { ascending: false })
     if (error) return res.status(500).json({ error: error.message })
-    return res.json({ events: data })
+
+    const eventIds = (data || []).map((event) => event.id)
+    let guests = []
+    if (eventIds.length > 0) {
+      const { data: guestRows, error: guestError } = await supa
+        .from('event_guests')
+        .select('id, event_id, name, kind, passes, note, rsvp, responded_at')
+        .in('event_id', eventIds)
+      if (guestError) return res.status(500).json({ error: guestError.message })
+      guests = guestRows || []
+    }
+
+    const guestsByEvent = guests.reduce((acc, guest) => {
+      if (!acc[guest.event_id]) acc[guest.event_id] = []
+      acc[guest.event_id].push(guest)
+      return acc
+    }, {})
+    const events = (data || []).map((event) => ({
+      ...event,
+      guests: guestsByEvent[event.id] || [],
+    }))
+
+    return res.json({ events })
   }
 
   if (req.method === 'POST') {

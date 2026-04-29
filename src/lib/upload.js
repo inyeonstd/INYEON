@@ -6,17 +6,18 @@ export async function uploadImage(file, { maxWidth = 1600, quality = 0.85 } = {}
     throw new Error('El archivo debe ser una imagen')
   }
   const blob = await compressToBlob(file, maxWidth, quality)
-  const remote = await tryRemoteUpload(blob)
+  const dataUrl = await blobToDataUrl(blob)
+  const remote = await tryRemoteUpload(blob, dataUrl)
   if (remote) return remote
-  return await blobToDataUrl(blob)
+  return dataUrl
 }
 
-async function tryRemoteUpload(blob) {
+async function tryRemoteUpload(blob, dataUrl) {
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: { 'Content-Type': blob.type },
-      body: blob,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contentType: blob.type, dataUrl }),
     })
     if (!res.ok) return null
     const ct = res.headers.get('content-type') || ''

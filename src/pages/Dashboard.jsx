@@ -15,6 +15,16 @@ import {
   listEvents,
 } from '../lib/store'
 
+function getAttendeeCount(guest) {
+  if (!guest) return 0
+  try {
+    const parsed = JSON.parse(guest.note || '{}')
+    const attendees = Number(parsed.attendees)
+    if (Number.isFinite(attendees)) return Math.max(0, attendees)
+  } catch {}
+  return guest.rsvp === 'attending' ? Number(guest.passes) || 1 : 0
+}
+
 export default function Dashboard() {
   const nav = useNavigate()
   const session = getSession()
@@ -133,6 +143,15 @@ export default function Dashboard() {
               month: 'short',
               year: 'numeric',
             })
+            const guests = ev.guests || []
+            const assignedPasses = guests.reduce((acc, g) => acc + (Number(g.passes) || 1), 0)
+            const confirmedAttendees = guests.reduce(
+              (acc, g) => acc + getAttendeeCount(g),
+              0
+            )
+            const declinedPasses = guests
+              .filter((g) => g.rsvp === 'declined')
+              .reduce((acc, g) => acc + (Number(g.passes) || 1), 0)
             return (
               <Card key={ev.id} className="!p-0 overflow-hidden">
                 <div
@@ -151,33 +170,57 @@ export default function Dashboard() {
                     <p className="mt-1 font-display text-2xl italic">{ev.title}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 p-4">
-                  <div className="font-mono text-[10px] uppercase tracking-[0.3em] text-ink/50">
-                    /{ev.slug} · {ev.guests?.length || 0} invitados
-                  </div>
-                  <div className="flex flex-wrap gap-2">
+                <div className="space-y-4 p-4">
+                  <div className="grid grid-cols-3 border border-ink/12 bg-white/45">
+                      <div className="border-r border-ink/12 px-4 py-3">
+                        <p className="font-display text-2xl italic leading-none text-ink">
+                          {assignedPasses}
+                        </p>
+                        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-ink/45">
+                          Pases asignados
+                        </p>
+                      </div>
+                      <div className="border-r border-ink/12 px-4 py-3">
+                        <p className="font-display text-2xl italic leading-none text-rust">
+                          {confirmedAttendees}
+                        </p>
+                        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-ink/45">
+                          Asistentes confirmados
+                        </p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="font-display text-2xl italic leading-none text-ink/55">
+                          {declinedPasses}
+                        </p>
+                        <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.18em] text-ink/45">
+                          No asistirán
+                        </p>
+                      </div>
+                    </div>
+
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
                     <Link
                       to={`/i/${ev.slug}`}
                       target="_blank"
-                      className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/60 hover:text-rust"
+                      className="inline-flex min-h-11 items-center justify-center border border-ink/15 bg-white/55 px-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-ink transition-colors hover:border-rust hover:text-rust"
                     >
-                      Ver ↗
+                      Ver invitación
                     </Link>
                     <Link
                       to={`/app/event/${ev.id}/guests`}
-                      className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/60 hover:text-rust"
+                      className="inline-flex min-h-11 items-center justify-center border border-ink/15 bg-white/55 px-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-ink transition-colors hover:border-rust hover:text-rust"
                     >
                       Invitados
                     </Link>
                     <Link
                       to={`/app/event/${ev.id}`}
-                      className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink hover:text-rust"
+                      className="inline-flex min-h-11 items-center justify-center bg-ink px-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-cream transition-colors hover:bg-rust"
                     >
-                      Editar →
+                      Editar
                     </Link>
                     <button
                       onClick={() => handleDelete(ev.id)}
-                      className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink/40 hover:text-rust"
+                      className="inline-flex min-h-11 items-center justify-center border border-ink/15 px-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-ink/45 transition-colors hover:border-rust hover:text-rust"
                     >
                       Eliminar
                     </button>

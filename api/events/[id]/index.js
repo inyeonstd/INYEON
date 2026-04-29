@@ -37,7 +37,9 @@ export default async function handler(req, res) {
     const body = await readBody(req)
     const patch = {}
     for (const k of ALLOWED_FIELDS) if (k in body) patch[k] = body[k]
-    if (patch.title && !patch.slug) {
+    if (patch.slug) {
+      patch.slug = await uniqueSlug(patch.slug, id)
+    } else if (patch.title) {
       patch.slug = await uniqueSlug(patch.title, id)
     }
     if (patch.status === 'published' && !body.published_at) {
@@ -49,7 +51,10 @@ export default async function handler(req, res) {
       .eq('id', id)
       .select()
       .single()
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) {
+      const status = error.code === '23505' ? 409 : 500
+      return res.status(status).json({ error: error.message })
+    }
     return res.json({ event: data })
   }
 

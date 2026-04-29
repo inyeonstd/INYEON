@@ -25,7 +25,7 @@ export default async function handler(req, res) {
   if (guestToken) {
     const { data } = await supa
       .from('event_guests')
-      .select('id, name, kind, passes, note, rsvp')
+      .select('id, name, kind, passes, note, rsvp, responded_at')
       .eq('event_id', event.id)
       .eq('token', guestToken)
       .maybeSingle()

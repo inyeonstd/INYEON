@@ -91,6 +91,28 @@ export async function removeGuest(_eventId, guestId) {
   await jsonFetch(`/api/guests/${guestId}`, { method: 'DELETE' })
 }
 
+export async function confirmGuestRsvp(token, rsvp, attendees) {
+  const { guest } = await jsonFetch('/api/rsvp', {
+    method: 'PATCH',
+    body: { token, rsvp, attendees },
+  })
+  return guest
+}
+
+export function trackInteraction(payload) {
+  const body = JSON.stringify(payload || {})
+  if (navigator.sendBeacon) {
+    const blob = new Blob([body], { type: 'application/json' })
+    if (navigator.sendBeacon('/api/track', blob)) return
+  }
+  fetch('/api/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {})
+}
+
 // =================== SESSION ===================
 
 export function getSession() {

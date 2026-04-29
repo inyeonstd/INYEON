@@ -20,10 +20,7 @@ export default function InvitationPage({ slug: slugProp }) {
   const [searchParams] = useSearchParams()
   const guestToken = searchParams.get('g')
   const editMode = searchParams.get('edit') === '1'
-  const { event, loading, error } = useEvent(slug)
-  const guest = guestToken
-    ? (event?.guests || []).find((g) => g.token === guestToken)
-    : null
+  const { event, guest, loading, error } = useEvent(slug, guestToken)
 
   useEffect(() => {
     const onMsg = (e) => {
@@ -97,7 +94,12 @@ export default function InvitationPage({ slug: slugProp }) {
           registry && {
             id: 'registry',
             render: (p) => (
-              <Registry {...p} event={event} content={registry.content} />
+              <Registry
+                {...p}
+                event={event}
+                content={registry.content}
+                guestToken={guestToken}
+              />
             ),
           },
           lodging && {
@@ -127,7 +129,14 @@ export default function InvitationPage({ slug: slugProp }) {
           )
         })
       })()}
-      <div id="section-closing"><Closing event={event} guest={guest} /></div>
+      <div id="section-closing">
+        <Closing
+          key={`${event.id}:${guestToken || 'public'}`}
+          event={event}
+          guest={guest}
+          guestToken={guestToken}
+        />
+      </div>
       <div id="section-footer"><Footer event={event} /></div>
     </main>
     </EditModeContext.Provider>

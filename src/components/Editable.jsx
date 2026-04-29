@@ -24,6 +24,15 @@ export default function Editable({ path, children, multiline = false, className 
     if (e.key === 'Escape') e.currentTarget.blur()
   }
 
+  const keepEditingClick = (e) => {
+    e.stopPropagation()
+  }
+
+  const preventParentAction = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
   return (
     <Tag
       contentEditable
@@ -32,6 +41,8 @@ export default function Editable({ path, children, multiline = false, className 
       data-edit-path={path}
       onBlur={onBlur}
       onKeyDown={onKeyDown}
+      onMouseDown={keepEditingClick}
+      onClick={preventParentAction}
       className={`-mx-0.5 cursor-text rounded px-0.5 outline outline-1 outline-dashed outline-rust/30 transition-[outline-color] hover:outline-rust focus:outline-2 focus:outline-rust ${className}`}
     >
       {children}
