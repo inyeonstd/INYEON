@@ -228,11 +228,12 @@ export default async function handler(req) {
   const requestUrl = new URL(req.url)
   const slug = requestUrl.searchParams.get('slug') || ''
   const debug = requestUrl.searchParams.get('debug') === '1'
+  const noCover = requestUrl.searchParams.get('nocover') === '1'
 
   try {
     const event = await getEvent(slug)
     const title = event?.title || (slug ? slug.replace(/-/g, ' ') : 'Inyeon')
-    const cover = event?.cover_image_url || ''
+    const cover = noCover ? '' : event?.cover_image_url || ''
     const dateStr = formatDate(event?.event_date)
     const origin = requestUrl.origin
 
