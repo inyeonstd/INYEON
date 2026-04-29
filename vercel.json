@@ -23,6 +23,14 @@
     {
       "source": "/i/:slug/:path*",
       "destination": "/api/invite-html?slug=:slug"
+    },
+    {
+      "source": "/share/:slug",
+      "destination": "/api/invite-html?slug=:slug"
+    },
+    {
+      "source": "/share/:slug/:path*",
+      "destination": "/api/invite-html?slug=:slug"
     }
   ]
 }

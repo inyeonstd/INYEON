@@ -155,6 +155,6 @@ export async function clearSession() {
 }
 
 export function buildGuestLink(slug, token) {
-  const base = `${window.location.origin}/i/${slug}`
+  const base = `${window.location.origin}/share/${slug}`
   return token ? `${base}?g=${token}` : base
 }

@@ -47,6 +47,7 @@ export default function App() {
 
       {/* Invitación pública */}
       <Route path="/i/:slug" element={<InvitationPage />} />
+      <Route path="/share/:slug" element={<InvitationPage />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
