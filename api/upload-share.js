@@ -124,24 +124,31 @@ export default async function handler(req, res) {
       : `${slug}.html`
 
     // El bucket `media` solo acepta imágenes. Usamos un bucket dedicado
-    // `share` que sí acepta text/html. Lo creamos si no existe (idempotente).
+    // `share` que acepta text/html. Si ya existe lo actualizamos para
+    // garantizar que permita text/html (Supabase compara MIME exactos).
     const { data: buckets } = await supa.storage.listBuckets()
     const exists = (buckets || []).some((b) => b.name === 'share')
     if (!exists) {
       const { error: bErr } = await supa.storage.createBucket('share', {
         public: true,
-        allowedMimeTypes: ['text/html', 'text/html; charset=utf-8'],
+        allowedMimeTypes: ['text/html'],
         fileSizeLimit: 1024 * 100,
       })
       if (bErr && !String(bErr.message || '').includes('already exists')) {
-        return res.status(500).json({ error: `bucket: ${bErr.message}` })
+        return res.status(500).json({ error: `bucket create: ${bErr.message}` })
       }
+    } else {
+      await supa.storage.updateBucket('share', {
+        public: true,
+        allowedMimeTypes: ['text/html'],
+        fileSizeLimit: 1024 * 100,
+      })
     }
 
     const { error: upErr } = await supa.storage
       .from('share')
       .upload(path, Buffer.from(html, 'utf8'), {
-        contentType: 'text/html; charset=utf-8',
+        contentType: 'text/html',
         cacheControl: '300',
         upsert: true,
       })
